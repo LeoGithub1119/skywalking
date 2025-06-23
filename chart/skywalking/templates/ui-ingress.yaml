@@ -37,6 +37,9 @@ metadata:
       {{ $key }}: {{ $value | quote }}
     {{- end }}
 spec:
+  {{- if .Values.ui.ingress.ingressClassName }}
+  ingressClassName: {{ .Values.ui.ingress.ingressClassName }}
+  {{- end }}
   rules:
     {{- range .Values.ui.ingress.hosts }}
       {{- $url := splitList "/" . }}

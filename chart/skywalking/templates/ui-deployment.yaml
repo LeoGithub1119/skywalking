@@ -75,13 +75,22 @@ spec:
 {{ toYaml .Values.ui.resources | indent 10 }}
 {{- end }}
         env:
-        - name: SW_OAP_ADDRESS
-          value: "http://{{ template "skywalking.oap.fullname" . }}:{{ .Values.oap.ports.rest }}"
+{{- $defaultUiEnv := dict
+  "SW_OAP_ADDRESS" (printf "http://%s:%v" (include "skywalking.oap.fullname" .) .Values.oap.ports.rest)
+}}
+
 {{- if .Values.oap.ports.zipkinquery }}
-        - name: SW_ZIPKIN_ADDRESS
-          value: "http://{{ template "skywalking.oap.fullname" . }}:{{ .Values.oap.ports.zipkinquery }}"
+  {{- $_ := set $defaultUiEnv "SW_ZIPKIN_ADDRESS" (printf "http://%s:%v" (include "skywalking.oap.fullname" .) .Values.oap.ports.zipkinquery) }}
 {{- end }}
-        {{- range $key, $value :=  .Values.ui.env }}
-        - name: {{ $key }}
-          value: {{ $value | quote }}
-        {{- end }}
+
+{{- $userUiEnv := dict }}
+{{- range .Values.ui.env }}
+  {{- $_ := set $userUiEnv .name .value }}
+{{- end }}
+
+{{- $merged := merge $defaultUiEnv $userUiEnv }}
+
+{{- range $k, $v := $merged }}
+        - name: {{ $k }}
+          value: {{ tpl $v $ | quote }}
+{{- end }}

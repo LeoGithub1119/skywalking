@@ -1,0 +1,199 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Default values for skywalking.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+serviceAccounts:
+  oap:
+    # By default, create SkyWalking's ServiceAccount. If set to false, you also need to change `serviceAccounts.oap.name` value to a custom ServiceAccount name.
+    create: true
+    name: ""
+
+imagePullSecrets: []
+
+initContainer:
+  image: busybox
+  tag: '1.30'
+
+oap:
+  name: oap
+  image:
+    repository: skywalking.docker.scarf.sh/apache/skywalking-oap-server
+    tag: 10.2.0
+    pullPolicy: IfNotPresent
+  storageType: elasticsearch
+  ports:
+    # add more ports here if you need, for example
+    # zabbix: 10051
+    grpc: 11800
+    rest: 12800
+    # zipkinreceiver: 9411
+    # zipkinquery: 9412
+  replicas: 2
+  service:
+    type: ClusterIP
+    # add annotations to the oap service
+    annotations: {}
+  javaOpts: -Xmx2g -Xms2g
+  antiAffinity: "soft"
+  nodeAffinity: {}
+  nodeSelector: {}
+  tolerations: []
+  resources: {}
+  # limits:
+  #   cpu: 8
+  #   memory: 8Gi
+  # requests:
+  #   cpu: 8
+  #   memory: 4Gi
+  livenessProbe: {}
+  # tcpSocket:
+  #   port: 12800
+  # initialDelaySeconds: 5
+  # periodSeconds: 20
+  startupProbe: {}
+  # Time to boot the application is set to:
+  # 9 (failureThreshold) * 10 (periodSeconds) = 90 seconds in this case.
+  # tcpSocket:
+  #   port: 12800
+  # failureThreshold: 9
+  # periodSeconds: 10
+  readinessProbe: {}
+  # tcpSocket:
+  #   port: 12800
+  # initialDelaySeconds: 5
+  # periodSeconds: 20
+  # podAnnotations:
+  #   example: oap-foo
+  securityContext: {}
+  # runAsUser: 1000
+  # runAsGroup: 1000
+  # fsGroup: 1000
+  env:
+  # more env, please refer to https://hub.docker.com/r/apache/skywalking-oap-server
+  # or https://github.com/apache/skywalking-docker/blob/master/6/6.4/oap/README.md#sw_telemetry
+
+  # Allows you to add any config files in /skywalking/config
+  # such as log4j2.xml, oal/core.oal, etc.
+  config: {}
+  # metadata-service-mapping.yaml: |
+  #   serviceName: e2e::${LABELS."service.istio.io/canonical-name"}
+  #   serviceInstanceName: ${NAME}
+  # oal:
+  #   core.oal: |
+  #     service_resp_time = from(Service.latency).longAvg();
+  #     service_sla = from(Service.*).percent(status == true);
+  #     service_cpm = from(Service.*).cpm();
+  # log4j2.xml: |
+  #   <Configuration status="DEBUG">
+  #     <!-- ... -->
+  #   </Configuration>
+  # ui-initialized-templates:
+  #   general:
+  #     general-service.json: |
+  #       [{"id":"General-Service" ... }]
+  # When 'dynamicConfig.enabled' set to true, enable oap dynamic configuration through k8s configmap，
+  # Note: The default configmap data is empty, please refer to the detailed documentation (https://github.com/apache/skywalking/blob/master/docs/en/setup/backend/dynamic-config.md)
+  # Sync period in seconds. Defaults to 60 seconds.
+  dynamicConfig:
+    enabled: false
+    period: 60
+    config: {}
+    #  agent-analyzer.default.slowDBAccessThreshold: default:200,mongodb:50
+    #  alarm.default.alarm-settings: |
+    #   rules:
+    #     # Rule unique name, must be ended with `_rule`.
+    #     service_resp_time_rule:
+    #       metrics-name: service_resp_time
+    #       op: ">"
+    #       threshold: 1000
+    #       period: 10
+    #       count: 3
+    #       silence-period: 5
+    #       Response time of service {name} is more than 1000ms in 3 minutes of last 10 minutes.
+
+  # A list of secrets and their paths to mount inside the pod
+  secretMounts: []
+#    - name: elastic-certificates
+#      secretName: elastic-certificates
+#      path: /usr/share/elasticsearch/config/certs
+
+# rover:
+#   enabled: true
+#   image: apache/skywalking-rover:0.7.0
+#   collector: skywalking-oap.skywalking:11800   
+#   samplingPolicy: "fixed-rate-sampling-policy"
+
+# cli:
+#   enabled: true
+#   image: apache/skywalking-cli:0.14.0
+#   env:
+#     SWCTL_GRPC_ADDR: skywalking-oap.skywalking:11800
+
+# extraObjects:
+#   - |-
+#     {{- if .Values.rover.enabled }}
+#     apiVersion: apps/v1
+#     kind: DaemonSet
+#     metadata:
+#       name: skywalking-rover
+#     spec:
+#       selector:
+#         matchLabels: {app: skywalking-rover}
+#       template:
+#         metadata:
+#           labels: {app: skywalking-rover}
+#         spec:
+#           hostPID: true
+#           hostNetwork: true
+#           containers:
+#             - name: rover
+#               image: "{{ .Values.rover.image }}"
+#               env:
+#                 - name: NODE_NAME
+#                   valueFrom:
+#                     fieldRef:
+#                       fieldPath: spec.nodeName
+#                 - name: SW_ROVER_COLLECTOR
+#                   value: "{{ .Values.rover.collector }}"
+#                 - name: SW_ROVER_SAMPLING
+#                   value: "{{ .Values.rover.samplingPolicy }}"
+#               args: 
+#                 - "--node-name=$(NODE_NAME)"
+#               securityContext:
+#                 privileged: true          
+#           tolerations:
+#             - operator: Exists
+#     {{- end }}
+#   - |-
+#     {{- if .Values.cli.enabled }}
+#     apiVersion: batch/v1
+#     kind: Job
+#     metadata:
+#       name: skywalking-cli-version
+#     spec:
+#       template:
+#         spec:
+#           restartPolicy: Never
+#           containers:
+#             - name: cli
+#               image: "{{ .Values.cli.image }}"
+#               command: ["swctl", "version"]
+#               env:
+#                 - name: SWCTL_GRPC_ADDR
+#                   value: "{{ .Values.cli.env.SWCTL_GRPC_ADDR }}"
+#     {{- end }}

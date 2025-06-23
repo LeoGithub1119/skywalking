@@ -127,41 +127,32 @@ spec:
 {{ toYaml .Values.oap.resources | indent 10 }}
 {{- end }}
         env:
-{{- if .Values.oap.ports.zipkinreceiver }}
-        - name: SW_RECEIVER_ZIPKIN
-          value: default
-        - name: SW_RECEIVER_ZIPKIN_REST_PORT
-          value: "{{ .Values.oap.ports.zipkinreceiver }}"
-{{- end }}
-{{- if .Values.oap.ports.zipkinquery }}
-        - name: SW_QUERY_ZIPKIN
-          value: default
-        - name: SW_QUERY_ZIPKIN_REST_PORT
-          value: "{{ .Values.oap.ports.zipkinquery }}"
-{{- end }}
-        - name: JAVA_OPTS
-          value: "-Dmode=no-init {{ .Values.oap.javaOpts }}"
-        - name: SW_CLUSTER
-          value: kubernetes
-        - name: SW_CLUSTER_K8S_NAMESPACE
-          value: "{{ .Release.Namespace }}"
+{{- $defaultOapEnv := dict
+  "JAVA_OPTS" (printf "-Dmode=no-init %s" .Values.oap.javaOpts)
+  "SW_CLUSTER" "kubernetes"
+  "SW_CLUSTER_K8S_NAMESPACE" .Release.Namespace
+  "SW_CLUSTER_K8S_LABEL" (include "skywalking.oap.labels" .)
+}}
+
 {{- if .Values.oap.dynamicConfig.enabled }}
-        - name: SW_CONFIGURATION
-          value: k8s-configmap
-        - name: SW_CONFIG_CONFIGMAP_PERIOD
-          value: "{{ .Values.oap.dynamicConfig.period }}"
+  {{- $_ := set $defaultOapEnv "SW_CONFIGURATION" "k8s-configmap" }}
+  {{- $_ := set $defaultOapEnv "SW_CONFIG_CONFIGMAP_PERIOD" (printf "%v" .Values.oap.dynamicConfig.period) }}
 {{- end }}
-        - name: SW_CLUSTER_K8S_LABEL
-          value: "{{ template "skywalking.oap.labels" . }}"
+
+{{- $userOapEnv := .Values.oap.env | default dict }}
+{{- $merged := merge $defaultOapEnv $userOapEnv }}
+
+{{- range $k, $v := $merged }}
+        - name: {{ $k }}
+          value: {{ tpl $v $ | quote }}
+{{- end }}
+
         - name: SKYWALKING_COLLECTOR_UID
           valueFrom:
             fieldRef:
               fieldPath: metadata.uid
-        {{- include "skywalking.oap.envs.storage" . | nindent 8 }}
-        {{- range $key, $value :=  .Values.oap.env }}
-        - name: {{ $key }}
-          value: {{ $value | quote }}
-        {{- end }}
+
+{{- include "skywalking.oap.envs.storage" . | nindent 8 }}
 
         volumeMounts:
           {{- range $path, $config := .Values.oap.config }}
@@ -205,5 +196,5 @@ spec:
             secretName: {{ .secretName }}
             {{- if .defaultMode }}
             defaultMode: {{ .defaultMode }}
-          {{- end }}
+            {{- end }}
         {{- end }}
