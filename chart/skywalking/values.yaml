@@ -95,6 +95,12 @@ oap:
     SW_STORAGE_ES_REQUEST_TIMEOUT: "30000"
 
   config:
+    receiver-ebpf:
+        selector: ${SW_RECEIVER_EBPF:default}
+        default: {}
+    agent-analyzer:
+      default:
+        meterAnalyzerActiveFiles: network-profiling
     # metadata-service-mapping.yaml: |
     #   serviceName: e2e::${LABELS["service.istio.io/canonical-name"]}
     #   serviceInstanceName: ${NAME}
@@ -229,7 +235,7 @@ elasticsearch:
         cluster.initial_master_nodes: elasticsearch-master-0
         xpack.security.enabled: false
     log4j2.properties: |
-      logger.action.name = org.elasticsearch.action
+      logger.action.name = org.elasticsearch.actio
       logger.action.level = info
       appender.console.type = Console
       appender.console.name = console
@@ -347,6 +353,10 @@ elasticsearch:
     enabled: true
   keystore: []
 
+
+
+
+  
 postgresql:
   enabled: false # Whether to start a demo postgresql deployment, don't use this for production.
   config:

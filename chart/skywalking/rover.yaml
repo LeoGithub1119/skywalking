@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: skywalking-rover
+  namespace: skywalking  
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: skywalking-rover
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "nodes", "services"]
+    verbs: ["get", "watch", "list"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: skywalking-rover
+subjects:
+  - kind: ServiceAccount
+    name: skywalking-rover
+    namespace: skywalking  
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: skywalking-rover
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: skywalking-rover
+  namespace: skywalking  
+spec:
+  selector:
+    matchLabels:
+      name: skywalking-rover
+  template:
+    metadata:
+      labels:
+        name: skywalking-rover
+    spec:
+      serviceAccountName: skywalking-rover
+      hostPID: true
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+        - name: skywalking-rover
+          image: apache/skywalking-rover:0.7.0
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_PTRACE", "SYS_ADMIN"]
+          volumeMounts:
+            - name: host
+              mountPath: /host
+              readOnly: true
+            - name: sys
+              mountPath: /sys
+              readOnly: true
+          env:
+            - name: ROVER_PROCESS_DISCOVERY_KUBERNETES_ACTIVE
+              value: "true"
+            - name: ROVER_PROCESS_DISCOVERY_KUBERNETES_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: ROVER_BACKEND_ADDR
+              value: skywalking-skywalking-helm-oap.skywalking.svc.cluster.local:11800
+            - name: ROVER_PROCESS_DISCOVERY_HEARTBEAT_PERIOD
+              value: "10s"
+            - name: ROVER_PROCESS_DISCOVERY_PROPERTIES_REPORT_PERIOD
+              value: "1"
+            - name: ROVER_PROFILING_CHECK_INTERVAL
+              value: "5s"
+      volumes:
+        - name: host
+          hostPath:
+            path: /
+            type: Directory
+        - name: sys
+          hostPath:
+            path: /sys
+            type: Directory
